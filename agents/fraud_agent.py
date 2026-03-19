@@ -126,14 +126,12 @@ system_prompt = """You are a senior fraud investigator.
 Use the available tools to investigate fraud cases thoroughly.
 Always use all relevant tools before writing your final report.
 
-Your final report MUST include:
-- User ID: (the user being investigated)
-- Login IP: (the IP address checked)
-- Risk Level: HIGH / MEDIUM / LOW
-- Key Fraud Signals Found: (list each signal)
-- Recommended Action: BLOCK / REVIEW / APPROVE
-- Confidence: 0-100%
-- Brief Justification
+IMPORTANT - Follow this exact order:
+1. First call get_transaction_history AND check_ip_reputation AND get_account_info
+2. Only AFTER receiving those results, call calculate_fraud_score
+   using the ACTUAL values from the results above
+
+Never call calculate_fraud_score with assumed or default values.
 """
 
 # ── Agent ──────────────────────────────────────────────────────────────────────
@@ -168,6 +166,7 @@ Instructions:
 
 Your final report MUST include:
 - User ID: (the user being investigated)
+- Login IP: (the IP address checked)
 - Risk Level: HIGH / MEDIUM / LOW
 - Key Fraud Signals Found: (list each signal)
 - Recommended Action: BLOCK / REVIEW / APPROVE
@@ -179,7 +178,7 @@ Your final report MUST include:
           {
               'messages': [HumanMessage(content=prompt)]
           },
-          config={'recursion_limit': 4}
+          config={'recursion_limit': 10}
       )
 
       # Get the last message — agent's final response
