@@ -1,1 +1,51 @@
+# Environment & secrets — NEVER commit these
 .env
+.env.*
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Vector databases — large, auto-generated
+chroma_db/
+chroma_db_langchain/
+
+# ML model cache — downloaded automatically, no need to commit
+.cache/
+*.bin
+*.safetensors
+
+# HuggingFace cache
+~/.cache/huggingface/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
