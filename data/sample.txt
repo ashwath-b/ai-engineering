@@ -1,0 +1,31 @@
+FRAUD INVESTIGATION REPORT — Q3 2024
+
+Account Takeover Fraud:
+Account takeover attacks increased 23% in Q3 2024.
+Primary attack vectors include credential stuffing using
+leaked password databases, SIM swapping targeting
+high-value accounts, and phishing campaigns mimicking
+legitimate bank communications. Affected accounts showed
+login attempts from multiple countries within 24 hours.
+
+Synthetic Identity Fraud:
+Synthetic identity fraud cases rose 15% quarter over quarter.
+Fraudsters combine real Social Security numbers with fake
+names and dates of birth. These synthetic identities are
+built up over 6-18 months before being used for large
+fraudulent transactions. Detection signals include thin
+credit files with sudden large transaction requests.
+
+Transaction Fraud Patterns:
+High-risk transaction signals identified this quarter:
+purchases over $500 within first 48 hours of account creation,
+multiple failed payment attempts followed by success,
+transactions at unusual hours (2am-5am local time),
+and rapid fund transfers to newly added external accounts.
+
+Recommended Actions:
+Implement velocity checks on new accounts for first 30 days.
+Flag transactions over $200 from accounts under 7 days old.
+Monitor for impossible travel — logins from cities more than
+500 miles apart within 2 hours. Deploy device fingerprinting
+to detect emulators used in automated fraud attacks.
