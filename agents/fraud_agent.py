@@ -4,8 +4,9 @@ from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage
 from langchain.agents import create_agent
 from langgraph.errors import GraphRecursionError
-# from langchain.agents import AgentExecutor
 from dotenv import load_dotenv
+from rag.query import retrieve
+from rag.langchain_rag import ask
 import os
 import json
 
@@ -120,16 +121,47 @@ def calculate_fraud_score(
         "max_score": 100
     })
 
+@tool
+def search_fraud_policy(query: str) -> str:
+    """Search internal fraud policy documents for relevant guidelines
+    and thresholds. Returns raw policy excerpts. Use this for quick
+    lookups of specific fraud indicators, thresholds, or patterns
+    mentioned in policy documents. Call this during every investigation
+    to check if the user's behavior matches known fraud patterns."""
+    chunks = retrieve(query, n_results=3)
+    if not chunks:
+        return "No relevant policy found for this query."
+    return "\n\n---\n\n".join(chunks)
+
+@tool
+def ask_fraud_policy(question: str) -> str:
+    """Ask a natural language question about fraud policy and get a
+    synthesized answer. Use this when you need a clear explanation
+    of what policy says about a specific situation — not just raw text.
+    More thorough than search_fraud_policy but slower."""
+    answer = ask(question)
+    if not answer:
+        return "Could not find an answer in policy documents."
+    return answer
+
 # ── Prompt ──────────────────────────────────────────────────────────────────────
 
 system_prompt = """You are a senior fraud investigator.
 Use the available tools to investigate fraud cases thoroughly.
 Always use all relevant tools before writing your final report.
 
+INVESTIGATION ORDER:
+1. Call get_transaction_history, check_ip_reputation, get_account_info
+   in parallel — gather all user data first
+2. Call search_fraud_policy with relevant queries to check if user
+   behavior matches known fraud patterns in our policy documents
+3. Call calculate_fraud_score using ACTUAL values from step 1
+4. Synthesize all findings into a structured report
+
 IMPORTANT - Follow this exact order:
-1. First call get_transaction_history AND check_ip_reputation AND get_account_info
-2. Only AFTER receiving those results, call calculate_fraud_score
-   using the ACTUAL values from the results above
+- Always search fraud policy documents during every investigation
+- Never call calculate_fraud_score before receiving data from step 1
+- Use actual retrieved values, never assumed or default values
 
 Never call calculate_fraud_score with assumed or default values.
 """
@@ -140,7 +172,9 @@ tools = [
     get_transaction_history,
     check_ip_reputation,
     get_account_info,
-    calculate_fraud_score
+    calculate_fraud_score,
+    search_fraud_policy,
+    ask_fraud_policy
 ]
 
 agent = create_agent(llm, tools, system_prompt=system_prompt)
@@ -169,6 +203,7 @@ Your final report MUST include:
 - Login IP: (the IP address checked)
 - Risk Level: HIGH / MEDIUM / LOW
 - Key Fraud Signals Found: (list each signal)
+- Policy References: (what policy says about these signals)
 - Recommended Action: BLOCK / REVIEW / APPROVE
 - Confidence: 0-100%
 - Brief Justification
