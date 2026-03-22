@@ -1,13 +1,14 @@
 # rag/query.py
 import chromadb
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
+from fastembed import TextEmbedding
 from groq import Groq
 from dotenv import load_dotenv
 import os
 
 load_dotenv()
 
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+embedding_model = TextEmbedding("BAAI/bge-small-en-v1.5")
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="documents")
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -16,7 +17,7 @@ def retrieve(question: str, n_results: int = 5) -> list[str]:
     """Find most relevant chunks for a question"""
 
     # Embed the question using same model as ingestion
-    question_embedding = embedding_model.encode(question).tolist()
+    question_embedding = list(embedding_model.embed([question]))[0].tolist()
 
     # Find closest chunks in vector space
     results = collection.query(

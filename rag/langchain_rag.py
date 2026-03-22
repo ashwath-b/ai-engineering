@@ -1,6 +1,6 @@
 # rag/langchain_rag.py
 from langchain_community.vectorstores import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_groq import ChatGroq
@@ -14,9 +14,7 @@ load_dotenv()
 
 # ── Setup ──────────────────────────────────────────────────────────────────────
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="all-MiniLM-L6-v2"
-)
+embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
 
 vectorstore = Chroma(
     embedding_function=embeddings,

@@ -1,12 +1,11 @@
 # rag/ingest.py
 import chromadb
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 import os
 from pypdf import PdfReader
 
 # Load embedding model (downloads once, ~90MB, runs locally — free)
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-
+embedding_model = TextEmbedding("BAAI/bge-small-en-v1.5")
 # Local ChromaDB — stores data in ./chroma_db folder
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="documents")
@@ -40,7 +39,7 @@ def ingest_file(filepath: str) -> int:
 
     # 3. Embed + 4. Store
     for i, chunk in enumerate(chunks):
-        embedding = embedding_model.encode(chunk).tolist()
+        embedding = list(embedding_model.embed([chunk]))[0].tolist()
         collection.upsert(
             ids=[f"{filepath}_chunk_{i}"],
             embeddings=[embedding],
