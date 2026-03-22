@@ -181,11 +181,3 @@ def rag_ingest(request: IngestRequest):
 def agent_investigate(request: InvestigateRequest):
     response = investigate(request.user_id, request.ip_address)
     return {"result": response}
-
-@app.get("/debug")
-def debug():
-    return {
-        "port": os.getenv("PORT", "not set"),
-        "railway_env": os.getenv("RAILWAY_ENVIRONMENT", "not set"),
-        "python_path": os.getenv("PYTHONPATH", "not set")
-    }
