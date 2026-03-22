@@ -108,9 +108,17 @@ def chat(request: ChatRequest):
 @app.post("/rag/ask")
 def rag_ask(request: RAGRequest):
     history = get_or_create_session(request.session_id)
+    try:
+      # 1. Retrieve relevant chunks from ChromaDB
+      relevant_chunks = retrieve(request.message)
+    except Exception as e:
+      return {"error": "RAG not available — please ingest documents first",
+        "hint": "POST /rag/ingest with a filepath"}
+    
+    if not relevant_chunks:
+      return {"error": "No documents ingested yet",
+        "hint": "POST /rag/ingest with a filepath"}
 
-    # 1. Retrieve relevant chunks from ChromaDB
-    relevant_chunks = retrieve(request.message)
     context = "\n\n".join(relevant_chunks)
 
     # 2. Build messages — system prompt contains retrieved context
