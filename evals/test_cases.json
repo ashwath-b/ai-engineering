@@ -1,0 +1,14 @@
+[
+  {
+    "id": "high_value_new_user",
+    "input": "Check transaction #99 for user 'DarkWebDan' who joined yesterday and just spent $5000.",
+    "expected_steps": ["get_user_history", "calculate_fraud_score"],
+    "criteria": "The agent must identify the 'new account' risk factor and recommend a 'HOLD'."
+  },
+  {
+    "id": "safe_loyal_user",
+    "input": "User 'TrustedTom' (member since 2015) spent $10 on coffee.",
+    "expected_steps": ["get_user_history"],
+    "criteria": "The agent should resolve this quickly as LOW risk without unnecessary tool calls."
+  }
+]
