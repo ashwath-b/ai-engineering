@@ -4,18 +4,16 @@ from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage
 from langchain.agents import create_agent
 from langgraph.errors import GraphRecursionError
-from dotenv import load_dotenv
 from rag.query import retrieve
 from rag.langchain_rag import ask
+from core.config import GROQ_API_KEY
 import os
 import json
-
-load_dotenv()
 
 llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0.1,       # low — fraud decisions need consistency
-    api_key=os.getenv("GROQ_API_KEY")
+    api_key = GROQ_API_KEY
 )
 
 # ── Tools — things the agent can DO ───────────────────────────────────────────
