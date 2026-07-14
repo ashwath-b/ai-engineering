@@ -4,6 +4,7 @@ from fastembed import TextEmbedding
 from fastembed import TextEmbedding
 from groq import Groq
 from dotenv import load_dotenv
+from rag.models import Chunk
 import os
 
 load_dotenv()
@@ -13,7 +14,14 @@ chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="documents")
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
+<<<<<<< Updated upstream
 def retrieve(question: str, n_results: int = 5) -> list[str]:
+=======
+async def retrieve_async(question: str, n_results: int = 5) -> list[Chunk]:
+    return await asyncio.to_thread(retrieve, question, n_results)
+
+def retrieve(question: str, n_results: int = 5) -> list[Chunk]:
+>>>>>>> Stashed changes
     """Find most relevant chunks for a question"""
 
     # Embed the question using same model as ingestion
@@ -24,15 +32,15 @@ def retrieve(question: str, n_results: int = 5) -> list[str]:
         query_embeddings=[question_embedding],
         n_results=n_results
     )
-
-    return results["documents"][0]  # list of relevant chunks
+    return parse_chroma_results(results) 
+    # return results["documents"][0]  # list of relevant chunks
 
 def ask(question: str) -> str:
     """Retrieve relevant context and answer the question"""
 
     # 1. Retrieve relevant chunks
     relevant_chunks = retrieve(question)
-    context = "\n\n".join(relevant_chunks)
+    context = "\n\n".join(c.text for c in relevant_chunks)
 
     print(f"\n--- Retrieved Context ---\n{context}\n------------------------\n")
 
@@ -78,7 +86,7 @@ Question: {question}"""
 
 def ask_with_temperature(question: str, temperature: float) -> str:
     relevant_chunks = retrieve(question)
-    context = "\n\n".join(relevant_chunks)
+    context = "\n\n".join(c.text for c in relevant_chunks)
 
     messages = [
         {"role": "system", "content": "You are a fraud expert. Be concise, one sentence only."},
@@ -101,4 +109,22 @@ if __name__ == "__main__":
 
     print("\n=== temperature=1.0 (run 3 times) ===")
     for _ in range(3):
+<<<<<<< Updated upstream
         print(ask_with_temperature(question, temperature=1.0))
+=======
+        print(ask_with_temperature(question, temperature=1.0))
+
+def parse_chroma_results(raw: dict) -> list[Chunk]:
+    documents = raw["documents"][0]
+    metadatas = raw["metadatas"][0]
+    distances = raw["distances"][0]
+
+    return [
+        Chunk(
+            text=doc,
+            score=max(0.0, min(1.0, 1 - dist)),
+            source=meta["source"]
+        )
+        for doc, meta, dist in zip(documents, metadatas, distances)
+    ]
+>>>>>>> Stashed changes

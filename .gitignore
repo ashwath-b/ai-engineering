@@ -6,8 +6,12 @@
 .venv/
 venv/
 env/
+.claude/
+.understand-anything/
 
 # Python cache
+agents/__pycache__/
+app/__pycache__/
 __pycache__/
 *.pyc
 *.pyo

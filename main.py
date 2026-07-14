@@ -1,4 +1,5 @@
 # main.py
+<<<<<<< Updated upstream
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -9,18 +10,36 @@ from rag.ingest import ingest_file
 from agents.fraud_agent import investigate
 
 from rag.query import retrieve
+=======
+
+import os
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+from groq import AsyncGroq
+from app.schemas import BaseRequest, ChatRequest, RAGRequest, IngestRequest, InvestigateRequest, Chunk, Message
+
+
+from agents.fraud_agent import investigate
+from rag.ingest import ingest_file
+from rag.query import retrieve, retrieve_async
+>>>>>>> Stashed changes
 
 load_dotenv()
+
+# Constants
+DEFAULT_CHAT_MODEL = "llama-3.1-8b-instant"
+DEFAULT_RAG_MODEL = "llama-3.3-70b-versatile"
 
 app = FastAPI()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-# ─── In-Memory Conversation Store ────────────────────────────────────────────
-# Lost on server restart — fine for learning
-# Production: replace with Redis or PostgreSQL
-conversation_store: dict[str, list] = {}
+from app.api.chat import router as chat_router
 
+app.include_router(chat_router)
 
+<<<<<<< Updated upstream
 # ─── Pydantic Models ──────────────────────────────────────────────────────────
 
 class Message(BaseModel):
@@ -58,11 +77,15 @@ def get_or_create_session(session_id: str) -> list:
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
+=======
+from app.core.sessions import conversation_store, get_or_create_session
+>>>>>>> Stashed changes
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
+<<<<<<< Updated upstream
 
 # ── 1. General Chat ───────────────────────────────────────────────────────────
 
@@ -103,6 +126,8 @@ def chat(request: ChatRequest):
     return StreamingResponse(stream_and_store(), media_type="text/plain")
 
 
+=======
+>>>>>>> Stashed changes
 # ── 2. RAG Chat ───────────────────────────────────────────────────────────────
 
 @app.post("/rag/ask")
@@ -119,7 +144,7 @@ def rag_ask(request: RAGRequest):
       return {"error": "No documents ingested yet",
         "hint": "POST /rag/ingest with a filepath"}
 
-    context = "\n\n".join(relevant_chunks)
+    context = "\n\n".join(c.text for c in relevant_chunks)
 
     # 2. Build messages — system prompt contains retrieved context
     full_messages = [
@@ -162,14 +187,14 @@ Context:
 @app.get("/history/{session_id}")
 def get_history(session_id: str):
     """See full conversation history for a session"""
-    return conversation_store.get(session_id, [])
+    return {"session_id": session_id, "history": conversation_store.get(session_id, [])}
 
 
 @app.delete("/history/{session_id}")
 def clear_history(session_id: str):
     """Clear conversation and start fresh"""
     conversation_store.pop(session_id, None)
-    return {"status": "cleared"}
+    return {"status": "deleted"}
 
 # ── 4. pdf file ingestion ───────────────────────────────────────────────────
 @app.post("/rag/ingest")

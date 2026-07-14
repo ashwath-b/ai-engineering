@@ -10,6 +10,9 @@ from core.config import GROQ_API_KEY
 import os
 import json
 
+DISPOSABLE_DOMAINS = ["tempmail.com", "disposablemail.com"]
+KNOWN_FRAUD_EMAILS = ["john@doe.com", "abc@xyz.com", "john@tempmail.com", "scammer@gmail.com"]
+
 llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0.1,       # low — fraud decisions need consistency
@@ -76,12 +79,14 @@ def get_account_info(user_id: str) -> str:
         "user_123": {
             "account_age_days": 3,
             "email_verified": False,
+            "email": "john@tempmail.com",
             "phone_verified": False,
             "account_flags": ["multiple_failed_logins", "password_reset_requested"]
         },
         "user_456": {
             "account_age_days": 365,
             "email_verified": True,
+            "email": "aab@vada.com",
             "phone_verified": True,
             "account_flags": []
         }
@@ -129,7 +134,7 @@ def search_fraud_policy(query: str) -> str:
     chunks = retrieve(query, n_results=3)
     if not chunks:
         return "No relevant policy found for this query."
-    return "\n\n---\n\n".join(chunks)
+    return "\n\n---\n\n".join(c.text for c in chunks)
 
 @tool
 def ask_fraud_policy(question: str) -> str:
@@ -142,6 +147,100 @@ def ask_fraud_policy(question: str) -> str:
         return "Could not find an answer in policy documents."
     return answer
 
+@tool
+def check_email_reputation(email: str) -> str:
+    """Check if an emailaddress is associated with fraud by Searching
+    internal list if emails tagged as known fraudulent addresses or disposable domains.
+    It accepts an email address and returns a JSON object with disposable_domain,
+    known_fraud & risk_level. WHen the emailaddress is malformed it returns an error.
+    Call this when an emailaddress isn't verified and is suspicious."""
+    # Mock data
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return json.dumps({
+            "error": "Malformed email address"
+        })
+    domain = email.split("@")[-1]
+    disposable_domain = domain in DISPOSABLE_DOMAINS
+    known_fraud = email in KNOWN_FRAUD_EMAILS
+    risk_level = "HIGH" if known_fraud or disposable_domain else "LOW"
+    return json.dumps({
+        "email": email,
+        "risk_level": risk_level,
+        "known_fraud": known_fraud,
+        "disposable_domain": disposable_domain
+    })
+
+@tool
+def get_linked_accounts(user_id: str) -> str:
+    """Find accounts linked to other user/accounts by shared device or IP
+    It accepts user_id and returns JSON with linked_accounts (array)
+    Each linked_account has user_id, link_types (array), account_age_days, last_seen.
+    If no linked accounts found, returns an empty array.
+    Call this when a user is suspected of fraud to see if they are connected
+    to other accounts that have been flagged for suspicious activity."""
+    # Mock data
+    mock_linked_accounts = {
+        "user_123": {
+            "linked_accounts": [
+                {
+                    "user_id": "user_789",
+                    "link_types": ["shared_device"],
+                    "account_age_days": 2,
+                    "last_seen": "2024-01-18"
+                },
+                {
+                    "user_id": "user_555",
+                    "link_types": ["shared_ip", "shared_device"],
+                    "account_age_days": 5,
+                    "last_seen": "2024-01-17"
+                }
+            ]
+        },
+
+        "user_456": {
+            "linked_accounts": []
+        }
+    }
+    user = mock_linked_accounts.get(user_id)
+
+    if user is None:
+        return json.dumps({"error": "User not found"})
+
+    linked_accounts = user.get("linked_accounts", [])
+    return json.dumps({
+        "linked_accounts": linked_accounts
+    })
+
+@tool
+def check_transaction_velocity(user_id: str) -> str:
+    """Find if a user account has unusually high number of transactions
+    in a short period of time. Accepts user_id and returns a JSON object with
+    transactions_last_hour, returns_last_hour, highest_transactions_in_any_hour,
+    days_since_last_transaction and velocity_risk (high/low).
+    Call this when investigating users with high return rates
+    or suspicious activity."""
+    # Mock data
+    mock_velocity = {
+
+        "user_123": {
+            "transactions_last_hour": 14,
+            "returns_last_hour": 9,
+            "highest_transactions_in_any_hour": 17,
+            "days_since_last_transaction": 0,
+            "velocity_risk": "HIGH"
+        },
+
+        "user_456": {
+            "transactions_last_hour": 1,
+            "returns_last_hour": 0,
+            "highest_transactions_in_any_hour": 2,
+            "days_since_last_transaction": 6,
+            "velocity_risk": "LOW"
+        }
+    }
+
+    data = mock_velocity.get(user_id, {"error": "User not found"})
+    return json.dumps(data)
 # ── Prompt ──────────────────────────────────────────────────────────────────────
 
 system_prompt = """You are a senior fraud investigator.
@@ -149,12 +248,16 @@ Use the available tools to investigate fraud cases thoroughly.
 Always use all relevant tools before writing your final report.
 
 INVESTIGATION ORDER:
-1. Call get_transaction_history, check_ip_reputation, get_account_info
-   in parallel — gather all user data first
-2. Call search_fraud_policy with relevant queries to check if user
+1. Call get_transaction_history, check_ip_reputation, get_account_info,
+   get_linked_accounts, check_transaction_velocity in parallel — gather all user data first
+2. After get_account_info returns, call check_email_reputation with the
+   exact "email" value from its output. Never guess or construct an
+   email address. If account info contains no email, skip this check
+   and note that in the report.
+3. Call search_fraud_policy with relevant queries to check if user
    behavior matches known fraud patterns in our policy documents
-3. Call calculate_fraud_score using ACTUAL values from step 1
-4. Synthesize all findings into a structured report
+4. Call calculate_fraud_score using ACTUAL values from step 1
+5. Synthesize all findings into a structured report
 
 IMPORTANT - Follow this exact order:
 - Always search fraud policy documents during every investigation
@@ -172,7 +275,10 @@ tools = [
     get_account_info,
     calculate_fraud_score,
     search_fraud_policy,
-    ask_fraud_policy
+    ask_fraud_policy,
+    check_email_reputation,
+    get_linked_accounts,
+    check_transaction_velocity
 ]
 
 agent = create_agent(llm, tools, system_prompt=system_prompt)
@@ -190,8 +296,8 @@ Case Details:
 - Login IP: {ip_address}
 
 Instructions:
-1. Get transaction history for the user
-2. Check IP reputation
+1. Get transaction history for the user, investigate linked accounts & check_transaction_velocity
+2. Check IP reputation & emailaddress is fraudulent or disposable
 3. Get account information
 4. Calculate fraud score using the retrieved data
 5. Synthesize all findings into a structured report
@@ -199,6 +305,7 @@ Instructions:
 Your final report MUST include:
 - User ID: (the user being investigated)
 - Login IP: (the IP address checked)
+- Email Address: (If available, else "N/A")
 - Risk Level: HIGH / MEDIUM / LOW
 - Key Fraud Signals Found: (list each signal)
 - Policy References: (what policy says about these signals)
