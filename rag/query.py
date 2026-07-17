@@ -6,6 +6,7 @@ from groq import Groq
 from dotenv import load_dotenv
 from rag.models import Chunk
 import os
+import asyncio
 
 load_dotenv()
 
@@ -14,14 +15,10 @@ chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="documents")
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-<<<<<<< Updated upstream
-def retrieve(question: str, n_results: int = 5) -> list[str]:
-=======
 async def retrieve_async(question: str, n_results: int = 5) -> list[Chunk]:
     return await asyncio.to_thread(retrieve, question, n_results)
 
 def retrieve(question: str, n_results: int = 5) -> list[Chunk]:
->>>>>>> Stashed changes
     """Find most relevant chunks for a question"""
 
     # Embed the question using same model as ingestion
@@ -109,9 +106,6 @@ if __name__ == "__main__":
 
     print("\n=== temperature=1.0 (run 3 times) ===")
     for _ in range(3):
-<<<<<<< Updated upstream
-        print(ask_with_temperature(question, temperature=1.0))
-=======
         print(ask_with_temperature(question, temperature=1.0))
 
 def parse_chroma_results(raw: dict) -> list[Chunk]:
@@ -127,4 +121,3 @@ def parse_chroma_results(raw: dict) -> list[Chunk]:
         )
         for doc, meta, dist in zip(documents, metadatas, distances)
     ]
->>>>>>> Stashed changes

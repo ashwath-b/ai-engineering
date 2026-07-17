@@ -1,16 +1,4 @@
 # main.py
-<<<<<<< Updated upstream
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from groq import Groq
-from dotenv import load_dotenv
-import os
-from rag.ingest import ingest_file
-from agents.fraud_agent import investigate
-
-from rag.query import retrieve
-=======
 
 import os
 
@@ -24,7 +12,6 @@ from app.schemas import BaseRequest, ChatRequest, RAGRequest, IngestRequest, Inv
 from agents.fraud_agent import investigate
 from rag.ingest import ingest_file
 from rag.query import retrieve, retrieve_async
->>>>>>> Stashed changes
 
 load_dotenv()
 
@@ -33,113 +20,30 @@ DEFAULT_CHAT_MODEL = "llama-3.1-8b-instant"
 DEFAULT_RAG_MODEL = "llama-3.3-70b-versatile"
 
 app = FastAPI()
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 
 from app.api.chat import router as chat_router
 
 app.include_router(chat_router)
 
-<<<<<<< Updated upstream
-# ─── Pydantic Models ──────────────────────────────────────────────────────────
-
-class Message(BaseModel):
-    role: str        # "user" or "assistant"
-    content: str
-
-class BaseRequest(BaseModel):
-    session_id: str
-    message: str
-    temperature: float = 0.7
-    system_prompt: str = "You are an expert AI engineer."
-
-class ChatRequest(BaseRequest):
-    model: str = "llama-3.1-8b-instant"
-
-class RAGRequest(BaseRequest):
-    model: str = "llama-3.3-70b-versatile"
-    temperature: float = 0.3
-    system_prompt: str = "You are a fraud investigation expert. Answer using ONLY the context provided. If the answer is not in context say 'I don't have that information.'"
-
-class IngestRequest(BaseModel):
-    filepath: str     # e.g. "data/my_document.pdf"
-
-class InvestigateRequest(BaseModel):
-    user_id: str
-    ip_address: str
-
-# ─── Helpers ──────────────────────────────────────────────────────────────────
-
-def get_or_create_session(session_id: str) -> list:
-    """Get existing conversation history or create new session"""
-    if session_id not in conversation_store:
-        conversation_store[session_id] = []
-    return conversation_store[session_id]
-
-
-# ─── Routes ───────────────────────────────────────────────────────────────────
-=======
 from app.core.sessions import conversation_store, get_or_create_session
->>>>>>> Stashed changes
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-<<<<<<< Updated upstream
-
-# ── 1. General Chat ───────────────────────────────────────────────────────────
-
-@app.post("/chat")
-def chat(request: ChatRequest):
-    history = get_or_create_session(request.session_id)
-
-    # Build full messages array with system prompt prepended
-    full_messages = [
-        {"role": "system", "content": request.system_prompt}
-    ] + history + [
-        {"role": "user", "content": request.message}   # ← added here directly
-    ]
-
-    def stream_and_store():
-        full_response = []
-
-        stream = client.chat.completions.create(
-            model=request.model,
-            messages=full_messages,
-            temperature=request.temperature,
-            stream=True
-        )
-
-        for chunk in stream:
-            content = chunk.choices[0].delta.content
-            if content is not None:
-                full_response.append(content)
-                yield content
-
-        # Save assistant response to history after streaming completes
-        history.append({"role": "user",      "content": request.message})
-        history.append({
-            "role": "assistant",
-            "content": "".join(full_response)
-        })
-
-    return StreamingResponse(stream_and_store(), media_type="text/plain")
-
-
-=======
->>>>>>> Stashed changes
 # ── 2. RAG Chat ───────────────────────────────────────────────────────────────
 
 @app.post("/rag/ask")
-def rag_ask(request: RAGRequest):
+async def rag_ask(request: RAGRequest):
     history = get_or_create_session(request.session_id)
     try:
       # 1. Retrieve relevant chunks from ChromaDB
-      relevant_chunks = retrieve(request.message)
+      relevant_chunks = await retrieve_async(request.message)
     except Exception as e:
       return {"error": "RAG not available — please ingest documents first",
         "hint": "POST /rag/ingest with a filepath"}
-    
+
     if not relevant_chunks:
       return {"error": "No documents ingested yet",
         "hint": "POST /rag/ingest with a filepath"}
@@ -159,17 +63,17 @@ Context:
         {"role": "user", "content": request.message}
     ]
 
-    def stream_and_store():
+    async def stream_and_store():
         full_response = []
 
-        stream = client.chat.completions.create(
+        stream = await client.chat.completions.create(
             model=request.model,
             messages=full_messages,
             temperature=request.temperature,
             stream=True
         )
 
-        for chunk in stream:
+        async for chunk in stream:
             content = chunk.choices[0].delta.content
             if content is not None:
                 full_response.append(content)
